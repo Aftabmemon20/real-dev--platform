@@ -85,7 +85,7 @@ Use the built-in editor to write your code. The preview updates automatically!
 
 ## 🌐 Live Demo
 
-🔗 **[View Live Demo](https://real-dev--platform.vercel.app)** *(Deploy to Vercel to get your live URL)*
+🔗 **[View Live Demo](https://real-dev-platform.vercel.app)** *(Deploy to Vercel to get your live URL)*
 
 ## 📁 Project Structure
 
