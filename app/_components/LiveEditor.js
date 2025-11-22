@@ -15,15 +15,17 @@ export default function LiveEditor({ courseName }) {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [isAISectionCollapsed, setIsAISectionCollapsed] = useState(true); // Start collapsed for more editor space
     const [userHasEdited, setUserHasEdited] = useState(false); // Track if user has made changes
+    const [isMonitoringEnabled, setIsMonitoringEnabled] = useState(false); // Manual toggle for AI monitoring
 
     // Initialize Gemini
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
     const model = genAI ? genAI.getGenerativeModel({ model: "gemini-2.5-flash" }) : null;
 
-    // Debounce timer ref and initial load tracker
+    // Debounce timer ref, initial load tracker, and last analyzed code
     const analysisTimeoutRef = useRef(null);
     const isInitialLoad = useRef(true);
+    const lastAnalyzedCode = useRef("");
     useEffect(() => {
         if (isMern) {
             setCode(`function App() {
@@ -69,17 +71,20 @@ print(greet("Developer"))`);
         isInitialLoad.current = false;
     }, [courseName, isMern, isPython]);
 
-    // Real-time AI Monitor - Only runs when user actively edits
+    // Manual AI Monitor - Only runs when toggle is ON and code changes
     useEffect(() => {
-        // Don't run on initial load or if no code
-        if (!code || isInitialLoad.current || !userHasEdited) return;
+        // Don't run if: initial load, no code, monitoring disabled, or code hasn't changed
+        if (!code || isInitialLoad.current || !userHasEdited || !isMonitoringEnabled) return;
+
+        // Don't analyze if code is the same as last time (prevents duplicate requests)
+        if (code === lastAnalyzedCode.current) return;
 
         // Clear previous timeout
         if (analysisTimeoutRef.current) {
             clearTimeout(analysisTimeoutRef.current);
         }
 
-        // Set new timeout (debounce 2 seconds)
+        // Set new timeout (debounce 3 seconds for less frequent requests)
         analysisTimeoutRef.current = setTimeout(async () => {
             setIsAnalyzing(true);
             try {
@@ -101,19 +106,21 @@ print(greet("Developer"))`);
                 const response = await result.response;
                 const text = response.text();
                 setAiFeedback(text);
+                lastAnalyzedCode.current = code; // Save the analyzed code
             } catch (error) {
                 console.error("AI Analysis Error:", error);
+                setAiFeedback("Error analyzing code. Please try again.");
             } finally {
                 setIsAnalyzing(false);
             }
-        }, 2000);
+        }, 3000); // Increased to 3 seconds
 
         return () => {
             if (analysisTimeoutRef.current) {
                 clearTimeout(analysisTimeoutRef.current);
             }
         };
-    }, [code, isMern, isPython, model, userHasEdited]);
+    }, [code, isMern, isPython, model, userHasEdited, isMonitoringEnabled]);
 
     const getAIGuidance = async () => {
         if (!projectIdea.trim()) {
@@ -217,12 +224,24 @@ print(greet("Developer"))`);
                     {courseName.toUpperCase()} Live Editor
                 </h1>
                 <div className="flex items-center gap-4">
-                    {/* AI Feedback Badge */}
-                    <div className={`text-xs px-3 py-1 rounded-full flex items-center gap-2 transition-colors ${isAnalyzing ? "bg-yellow-500/20 text-yellow-400" : "bg-emerald-500/20 text-emerald-400"
-                        }`}>
-                        <div className={`w-2 h-2 rounded-full ${isAnalyzing ? "bg-yellow-400 animate-pulse" : "bg-emerald-400"}`}></div>
-                        {isAnalyzing ? "AI Analyzing..." : "AI Monitoring Active"}
-                    </div>
+                    {/* AI Monitoring Toggle Button */}
+                    <button
+                        onClick={() => {
+                            setIsMonitoringEnabled(!isMonitoringEnabled);
+                            if (!isMonitoringEnabled) {
+                                setAiFeedback(""); // Clear feedback when enabling
+                            }
+                        }}
+                        className={`text-xs px-4 py-2 rounded-lg flex items-center gap-2 transition-all font-medium ${isMonitoringEnabled
+                                ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                                : "bg-slate-700 hover:bg-slate-600 text-slate-300"
+                            }`}
+                    >
+                        <div className={`w-2 h-2 rounded-full ${isAnalyzing ? "bg-yellow-300 animate-pulse" :
+                                isMonitoringEnabled ? "bg-white" : "bg-slate-400"
+                            }`}></div>
+                        {isAnalyzing ? "Analyzing..." : isMonitoringEnabled ? "AI Monitor ON" : "AI Monitor OFF"}
+                    </button>
                     <div className="text-sm text-slate-400">
                         {isMern ? "React Mode" : isPython ? "Python Mode" : "HTML Mode"}
                     </div>
