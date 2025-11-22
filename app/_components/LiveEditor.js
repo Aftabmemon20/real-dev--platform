@@ -14,14 +14,16 @@ export default function LiveEditor({ courseName }) {
     const [aiFeedback, setAiFeedback] = useState("");
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [isAISectionCollapsed, setIsAISectionCollapsed] = useState(true); // Start collapsed for more editor space
+    const [userHasEdited, setUserHasEdited] = useState(false); // Track if user has made changes
 
     // Initialize Gemini
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
     const model = genAI ? genAI.getGenerativeModel({ model: "gemini-2.5-flash" }) : null;
 
-    // Debounce timer ref
+    // Debounce timer ref and initial load tracker
     const analysisTimeoutRef = useRef(null);
+    const isInitialLoad = useRef(true);
     useEffect(() => {
         if (isMern) {
             setCode(`function App() {
@@ -63,11 +65,14 @@ print(greet("Developer"))`);
 </body>
 </html>`);
         }
+        // Mark initial load as complete after setting default code
+        isInitialLoad.current = false;
     }, [courseName, isMern, isPython]);
 
-    // Real-time AI Monitor
+    // Real-time AI Monitor - Only runs when user actively edits
     useEffect(() => {
-        if (!code) return;
+        // Don't run on initial load or if no code
+        if (!code || isInitialLoad.current || !userHasEdited) return;
 
         // Clear previous timeout
         if (analysisTimeoutRef.current) {
@@ -108,7 +113,7 @@ print(greet("Developer"))`);
                 clearTimeout(analysisTimeoutRef.current);
             }
         };
-    }, [code, isMern, isPython, model]);
+    }, [code, isMern, isPython, model, userHasEdited]);
 
     const getAIGuidance = async () => {
         if (!projectIdea.trim()) {
@@ -295,7 +300,12 @@ print(greet("Developer"))`);
                         </div>
                         <textarea
                             value={code}
-                            onChange={(e) => setCode(e.target.value)}
+                            onChange={(e) => {
+                                setCode(e.target.value);
+                                if (!userHasEdited) {
+                                    setUserHasEdited(true); // Mark that user has started editing
+                                }
+                            }}
                             placeholder="Type your code here..."
                             className="flex-1 w-full p-4 bg-slate-950 font-mono text-sm focus:outline-none resize-none"
                             spellCheck="false"
