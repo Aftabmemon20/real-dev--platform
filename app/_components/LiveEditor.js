@@ -13,6 +13,7 @@ export default function LiveEditor({ courseName }) {
     const [isThinking, setIsThinking] = useState(false);
     const [aiFeedback, setAiFeedback] = useState("");
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [isAISectionCollapsed, setIsAISectionCollapsed] = useState(true); // Start collapsed for more editor space
 
     // Initialize Gemini
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
@@ -107,7 +108,7 @@ print(greet("Developer"))`);
                 clearTimeout(analysisTimeoutRef.current);
             }
         };
-    }, [code, isMern, isPython]);
+    }, [code, isMern, isPython, model]);
 
     const getAIGuidance = async () => {
         if (!projectIdea.trim()) {
@@ -229,47 +230,60 @@ print(greet("Developer"))`);
                 {/* Left Pane: Editor & Controls */}
                 <div className="w-full md:w-1/2 flex flex-col border-r border-slate-700 bg-slate-900/50">
 
-                    {/* AI & Input Section */}
-                    <div className="p-4 border-b border-slate-700 space-y-4 overflow-y-auto max-h-[40vh]">
-                        <div>
-                            <label className="block text-xs font-medium mb-1 text-slate-400 uppercase tracking-wider">
-                                Project Goal
-                            </label>
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={projectIdea}
-                                    onChange={(e) => setProjectIdea(e.target.value)}
-                                    placeholder="e.g., A calculator app"
-                                    className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                                <button
-                                    onClick={getAIGuidance}
-                                    disabled={isThinking}
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
-                                >
-                                    {isThinking ? "..." : "Ask AI"}
-                                </button>
-                            </div>
-                        </div>
+                    {/* AI & Input Section - Collapsible */}
+                    <div className="border-b border-slate-700">
+                        {/* Toggle Button */}
+                        <button
+                            onClick={() => setIsAISectionCollapsed(!isAISectionCollapsed)}
+                            className="w-full p-2 bg-slate-800/50 hover:bg-slate-800 text-left text-xs font-medium text-slate-400 uppercase tracking-wider flex justify-between items-center transition-colors"
+                        >
+                            <span>🤖 AI Assistant</span>
+                            <span className="text-slate-500">{isAISectionCollapsed ? '▼ Expand' : '▲ Collapse'}</span>
+                        </button>
 
-                        {/* AI Feedback Display */}
-                        {aiFeedback && (
-                            <div className="bg-slate-800/80 rounded-md p-3 border border-blue-500/30 shadow-lg shadow-blue-500/10 animate-in fade-in slide-in-from-top-2">
-                                <div className="flex justify-between items-center mb-1">
-                                    <h3 className="text-xs font-bold text-blue-400 uppercase">AI Code Review</h3>
-                                    <span className="text-[10px] text-slate-500">Just now</span>
+                        {!isAISectionCollapsed && (
+                            <div className="p-4 space-y-4 overflow-y-auto max-h-[40vh]">
+                                <div>
+                                    <label className="block text-xs font-medium mb-1 text-slate-400 uppercase tracking-wider">
+                                        Project Goal
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={projectIdea}
+                                            onChange={(e) => setProjectIdea(e.target.value)}
+                                            placeholder="e.g., A calculator app"
+                                            className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        <button
+                                            onClick={getAIGuidance}
+                                            disabled={isThinking}
+                                            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors"
+                                        >
+                                            {isThinking ? "..." : "Ask AI"}
+                                        </button>
+                                    </div>
                                 </div>
-                                <p className="text-sm text-slate-200">{aiFeedback}</p>
-                            </div>
-                        )}
 
-                        {aiGuidance && (
-                            <div className="bg-slate-800/50 rounded-md p-3 border border-slate-700/50">
-                                <h3 className="text-xs font-bold text-emerald-400 mb-2 uppercase">AI Guidance</h3>
-                                <div className="text-sm text-slate-300 whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar">
-                                    {aiGuidance}
-                                </div>
+                                {/* AI Feedback Display */}
+                                {aiFeedback && (
+                                    <div className="bg-slate-800/80 rounded-md p-3 border border-blue-500/30 shadow-lg shadow-blue-500/10 animate-in fade-in slide-in-from-top-2">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <h3 className="text-xs font-bold text-blue-400 uppercase">AI Code Review</h3>
+                                            <span className="text-[10px] text-slate-500">Just now</span>
+                                        </div>
+                                        <p className="text-sm text-slate-200">{aiFeedback}</p>
+                                    </div>
+                                )}
+
+                                {aiGuidance && (
+                                    <div className="bg-slate-800/50 rounded-md p-3 border border-slate-700/50">
+                                        <h3 className="text-xs font-bold text-emerald-400 mb-2 uppercase">AI Guidance</h3>
+                                        <div className="text-sm text-slate-300 whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar">
+                                            {aiGuidance}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
