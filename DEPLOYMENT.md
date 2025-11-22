@@ -31,7 +31,7 @@ Since you have a local git repository, you need to push it to GitHub.
     - **Crucial Step**: In the "Configure Project" screen, look for **"Environment Variables"**.
     - Add a new variable:
         - **Key**: `NEXT_PUBLIC_GEMINI_API_KEY`
-        - **Value**: `AIzaSyDLK-mmy0SqSccDZ9NZB8WkJpKPMy4Qdpg` (Your API Key)
+        - **Value**: `YOUR_GEMINI_API_KEY_HERE` (Get your API key from [Google AI Studio](https://aistudio.google.com/app/apikey))
     - Click **"Add"**.
 
 3.  **Deploy**:
