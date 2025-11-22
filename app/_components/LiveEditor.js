@@ -22,10 +22,14 @@ export default function LiveEditor({ courseName }) {
     const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
     const model = genAI ? genAI.getGenerativeModel({ model: "gemini-2.5-flash" }) : null;
 
-    // Debounce timer ref, initial load tracker, and last analyzed code
+    // Debounce timer ref, initial load tracker, last analyzed code, and rate limiting
     const analysisTimeoutRef = useRef(null);
     const isInitialLoad = useRef(true);
     const lastAnalyzedCode = useRef("");
+    const lastAnalysisTime = useRef(0); // Track last API call time for rate limiting
+    const MIN_CHANGE_THRESHOLD = 20; // Minimum characters changed before analyzing
+    const RATE_LIMIT_MS = 60000; // Maximum 1 request per minute (60 seconds)
+
     useEffect(() => {
         if (isMern) {
             setCode(`function App() {
@@ -71,7 +75,7 @@ print(greet("Developer"))`);
         isInitialLoad.current = false;
     }, [courseName, isMern, isPython]);
 
-    // Manual AI Monitor - Only runs when toggle is ON and code changes
+    // Manual AI Monitor - Highly optimized with multiple safeguards
     useEffect(() => {
         // Don't run if: initial load, no code, monitoring disabled, or code hasn't changed
         if (!code || isInitialLoad.current || !userHasEdited || !isMonitoringEnabled) return;
@@ -79,23 +83,32 @@ print(greet("Developer"))`);
         // Don't analyze if code is the same as last time (prevents duplicate requests)
         if (code === lastAnalyzedCode.current) return;
 
+        // Check if code change is significant enough (minimum threshold)
+        const changeSize = Math.abs(code.length - lastAnalyzedCode.current.length);
+        if (changeSize < MIN_CHANGE_THRESHOLD && lastAnalyzedCode.current !== "") {
+            return; // Skip analysis for minor changes
+        }
+
+        // Rate limiting: Check if enough time has passed since last analysis
+        const now = Date.now();
+        const timeSinceLastAnalysis = now - lastAnalysisTime.current;
+        if (timeSinceLastAnalysis < RATE_LIMIT_MS && lastAnalysisTime.current !== 0) {
+            console.log(`Rate limited: ${Math.ceil((RATE_LIMIT_MS - timeSinceLastAnalysis) / 1000)}s remaining`);
+            return; // Skip if within rate limit window
+        }
+
         // Clear previous timeout
         if (analysisTimeoutRef.current) {
             clearTimeout(analysisTimeoutRef.current);
         }
 
-        // Set new timeout (debounce 3 seconds for less frequent requests)
+        // Set new timeout (debounce 5 seconds for even less frequent requests)
         analysisTimeoutRef.current = setTimeout(async () => {
             setIsAnalyzing(true);
             try {
                 const techStack = isMern ? "React" : isPython ? "Python" : "HTML/CSS/JS";
-                const prompt = `Analyze this ${techStack} code briefly. 
-        If there are errors, point them out. 
-        If it's good, give a short compliment or a quick tip. 
-        Keep it very concise (max 2 sentences).
-        
-        Code:
-        ${code}`;
+                // Ultra-concise prompt to minimize tokens
+                const prompt = `Review this ${techStack} code. If errors exist, list them. If good, give 1 tip. Max 2 sentences.\n\n${code}`;
 
                 if (!model) {
                     setAiFeedback("Please add your Gemini API key to .env.local to enable AI features.");
@@ -107,13 +120,14 @@ print(greet("Developer"))`);
                 const text = response.text();
                 setAiFeedback(text);
                 lastAnalyzedCode.current = code; // Save the analyzed code
+                lastAnalysisTime.current = Date.now(); // Update last analysis time
             } catch (error) {
                 console.error("AI Analysis Error:", error);
                 setAiFeedback("Error analyzing code. Please try again.");
             } finally {
                 setIsAnalyzing(false);
             }
-        }, 3000); // Increased to 3 seconds
+        }, 5000); // Increased to 5 seconds for better debouncing
 
         return () => {
             if (analysisTimeoutRef.current) {
@@ -233,12 +247,12 @@ print(greet("Developer"))`);
                             }
                         }}
                         className={`text-xs px-4 py-2 rounded-lg flex items-center gap-2 transition-all font-medium ${isMonitoringEnabled
-                                ? "bg-emerald-600 hover:bg-emerald-500 text-white"
-                                : "bg-slate-700 hover:bg-slate-600 text-slate-300"
+                            ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                            : "bg-slate-700 hover:bg-slate-600 text-slate-300"
                             }`}
                     >
                         <div className={`w-2 h-2 rounded-full ${isAnalyzing ? "bg-yellow-300 animate-pulse" :
-                                isMonitoringEnabled ? "bg-white" : "bg-slate-400"
+                            isMonitoringEnabled ? "bg-white" : "bg-slate-400"
                             }`}></div>
                         {isAnalyzing ? "Analyzing..." : isMonitoringEnabled ? "AI Monitor ON" : "AI Monitor OFF"}
                     </button>
